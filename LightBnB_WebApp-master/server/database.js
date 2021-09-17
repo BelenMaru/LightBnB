@@ -89,7 +89,7 @@ const getAllReservations = function(guest_id, limit = 10) {
     GROUP BY properties.id, reservations.id
     ORDER BY reservations.start_date
     LIMIT $2;`
-    , [guest_id, limit])
+    , [`guest_id`, limit])
     .then(result => result.rows)
 
     .catch((err => console.log('query error', err.msg)));
@@ -107,14 +107,57 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  return pool
-    .query(`SELECT * FROM properties LIMIT $1, [limit]`)
-    .then((result) => {
-      return(result.rows);
-    })
-    .catch((err) => {
-      console.log(err.message);
-    });
+  // Setup an array to hold any parameters that may be available for the query.
+  const queryParams = [];
+
+
+  // Start the query with all information that comes before the WHERE clause.
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
+
+  // Check if any city, owner_id, minimum or maximum price  per night, min-rating are passed in option. Add them to param and create WHERE clause
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    // console.log("🎈City queryParams length: ", queryParams.length)
+    queryString += `WHERE city LIKE $${queryParams.length} `;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(options.owner_id);
+    if (queryParams.length === ) {
+      queryString += `AND $${queryParams.length}`;
+    } else if (queryParams.length === ){
+      queryString +=  `WHERE  $${queryParams.length}`;
+    }
+  }
+
+  if (options.minimum_price_per_night) {
+    queryParams.push() ;
+    queryString += `AND  $${queryParams.length} `;
+  }
+
+  if(options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night) ;
+    queryString += `AND properties.cost_per_night <= $${queryParams.length} `
+  }
+
+  if (options.minimum_rating) {
+    queryParams.push();
+    havingClause = `HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
+  }
+
+  // Add any query that comes after the WHERE clause.
+  queryParams.push(limit);
+  queryString += `
+  GROUP BY properties.id;
+  HAVING
+  ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+
 };
 
 exports.getAllProperties = getAllProperties;
